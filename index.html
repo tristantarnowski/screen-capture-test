@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Screen Capture Test</title>
+</head>
+
+
+<body>
+    <h1>Screen Capture Test</h1>
+    <p>Records a video of the current tab, and saves it to a local file when the recording is stopped.</p>
+    <p>Stop recording by pressing the "Stop Capture" button, or using the controls in your browser.</p>
+    <p>Works best in Chromium-based browsers.</p>
+    <h3 id="clock"></h3>
+    <button id="start">Start Capture</button>
+    <button id="stop">Stop Capture</button>
+
+
+
+    <script>
+        let stream = null;
+
+        async function startCapture() {
+            // Configuration options for getDisplayMedia(). See https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getDisplayMedia
+            // Ask to record video of current tab only.
+            // Many options are currently experimental/non-standard and behaviour varies across browsers. Currently Chromium gives the best experience.
+            const displayMediaOptions = {
+                video: {
+                    displaySurface: "browser",
+                },
+                monitorTypeSurfaces: "exclude",
+                preferCurrentTab: true,
+                selfBrowserSurface: "include",
+                surfaceSwitching: "exclude",
+                systemAudio: "exclude",
+            }
+
+            const mediaRecorderOptions = {
+                mimeType: "video/webm",
+            }
+
+            try {
+                stream = await navigator.mediaDevices.getDisplayMedia(displayMediaOptions);
+                const start_timestamp = Date.now();
+                console.log(`Start timestamp: ${start_timestamp}`);
+
+                // Record the stream and download it. See https://developer.mozilla.org/en-US/docs/Web/API/MediaStream_Recording_API
+                const mediaRecorder = new MediaRecorder(stream, mediaRecorderOptions);
+
+                const chunks = [];
+                mediaRecorder.addEventListener("dataavailable", (e) => {
+                    chunks.push(e.data);
+                });
+
+                mediaRecorder.start();
+                console.log("Recorder started");
+
+                mediaRecorder.addEventListener("stop", (e) => {
+                    console.log("Recorder stopped");
+
+                    const blob = new Blob(chunks, { type: mediaRecorderOptions.mimeType });
+
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    document.body.appendChild(a);
+                    a.style = "display: none";
+                    a.href = url;
+                    a.download = `recording_${start_timestamp}.webm`;
+                    a.click();
+                    a.remove();
+                    window.URL.revokeObjectURL(url);
+                });
+
+            } catch (err) {
+                console.log(err)
+            }
+        }
+
+
+        // Stops screen sharing without using browser controls
+        function stopCapture() {
+            let tracks = stream.getTracks();
+            tracks.forEach((track) => {
+                track.stop();
+            });
+        }
+
+        document.getElementById("start").addEventListener("click", (e) => {
+            startCapture();
+        });
+
+        document.getElementById("stop").addEventListener("click", (e) => {
+            stopCapture();
+        });
+
+
+        function updateClock() {
+            document.getElementById("clock").textContent = new Date().toLocaleString("en-US");
+        }
+        updateClock();
+        setInterval(updateClock, 100);
+
+
+    </script>
+
+</body>
+
+</html>
